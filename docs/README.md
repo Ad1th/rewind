@@ -6,7 +6,7 @@ This directory contains the core technical specifications, architecture designs,
 
 | Document | Description | Status |
 | :--- | :--- | :--- |
-| [**PRD.md**](./PRD.md) | Product Requirements Document: problem statement, scope, user stories & competition strategy | Pending Specification |
+| [**PRD.md**](./PRD.md) | Product Requirements Document: problem statement, scope, user stories & competition strategy | Complete / Draft — Product Definition Complete |
 | [**ARCHITECTURE.md**](./ARCHITECTURE.md) | High-level system architecture, subsystem boundaries, data flow & component topology | Pending Specification |
 | [**DATABASE.md**](./DATABASE.md) | PostgreSQL schema, indexing strategy, state tables & audit log structure | Pending Specification |
 | [**API.md**](./API.md) | REST / WebSocket API specifications connecting frontend UI and agent backend runtime | Pending Specification |
