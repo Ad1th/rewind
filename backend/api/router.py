@@ -263,12 +263,18 @@ async def run_demo_scenario(
     coordinator: ControlPlaneRuntimeCoordinator = Depends(get_coordinator),
     repo: PersistenceRepository = Depends(get_repository),
 ):
-    runner = CanonicalDemoRunner(req.workspace_root, coordinator=coordinator)
-    summary = await runner.run_demo_steps("sess-canonical-demo")
-    
-    # Register session in repo
-    await repo.create_session(req.workspace_root, "Canonical Hackathon Demo Task")
+    import uuid, os
+    # Fresh session per demo run so state never bleeds between calls
+    session_id = f"sess-demo-{uuid.uuid4().hex[:8]}"
+    workspace = os.path.join(req.workspace_root, session_id)
+
+    runner = CanonicalDemoRunner(workspace, coordinator=coordinator)
+    summary = await runner.run_demo_steps(session_id)
+
+    # Register session in repo so /sessions/{id}/actions returns real data
+    await repo.create_session(workspace, "Canonical Hackathon Demo Task")
     for node in coordinator.dag_manager._nodes.values():
-        await repo.save_action(node.action)
+        if node.action.session_id == session_id:
+            await repo.save_action(node.action)
 
     return summary
