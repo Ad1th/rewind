@@ -43,6 +43,13 @@ export interface RollbackSummary {
   error_message?: string;
 }
 
+export interface DemoExecutionSummary {
+  session_id: string;
+  workspace_root: string;
+  total_steps_executed: number;
+  rollback_summary: RollbackSummary;
+}
+
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
 
 export async function createSession(workspace_root: string, goal_prompt: string): Promise<Session> {
@@ -73,6 +80,15 @@ export async function triggerRollback(
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ session_id, target_step_index, workspace_root }),
+  });
+  return res.json();
+}
+
+export async function runDemoScenario(workspace_root: string): Promise<DemoExecutionSummary> {
+  const res = await fetch(`${API_BASE}/demo/run`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ workspace_root }),
   });
   return res.json();
 }

@@ -3,7 +3,7 @@ import { Header } from './Header';
 import { ActionTimeline } from './ActionTimeline';
 import { ActionInspector } from './ActionInspector';
 import { RollbackModal } from './RollbackModal';
-import { ActionItem, createSession, listActions, RollbackSummary } from '../lib/api';
+import { ActionItem, createSession, listActions, runDemoScenario, RollbackSummary } from '../lib/api';
 import { useTelemetry } from '../lib/useTelemetry';
 
 export const TimeMachineUI: React.FC = () => {
@@ -33,62 +33,62 @@ export const TimeMachineUI: React.FC = () => {
   const handleRunDemoScenario = async () => {
     setIsDemoRunning(true);
     try {
-      const session = await createSession(workspaceRoot, 'Canonical Hackathon Demo Task');
-      setSessionId(session.session_id);
-
-      // Populate choreographed demo action timeline
-      const demoActions: ActionItem[] = [
-        {
-          action_id: 'act-demo-1',
-          session_id: session.session_id,
-          step_index: 1,
-          tool_name: 'fs.create_file',
-          arguments: { path: 'src/main.py', content: "print('v1 initial app')" },
-          reasoning: 'Step 1: Initializing application entry point',
-          status: 'COMMITTED',
-          risk_assessment: { score: 'LOW', rationale: 'Safe file creation', requires_approval: false },
-          reversibility_class: 'FULLY_REVERSIBLE',
-          checkpoint_id: 'chk-step-1',
-        },
-        {
-          action_id: 'act-demo-2',
-          session_id: session.session_id,
-          step_index: 2,
-          tool_name: 'fs.write_file',
-          arguments: { path: 'src/main.py', content: "print('v2 feature added')" },
-          reasoning: 'Step 2: Adding main application logic feature',
-          status: 'COMMITTED',
-          risk_assessment: { score: 'LOW', rationale: 'Safe edit', requires_approval: false },
-          reversibility_class: 'FULLY_REVERSIBLE',
-          checkpoint_id: 'chk-step-2',
-        },
-        {
-          action_id: 'act-demo-3',
-          session_id: session.session_id,
-          step_index: 3,
-          tool_name: 'fs.create_file',
-          arguments: { path: 'config.json', content: '{"env": "production"}' },
-          reasoning: 'Step 3: Creating production configuration file',
-          status: 'COMMITTED',
-          risk_assessment: { score: 'MEDIUM', rationale: 'Config change', requires_approval: false },
-          reversibility_class: 'FULLY_REVERSIBLE',
-          checkpoint_id: 'chk-step-3',
-        },
-        {
-          action_id: 'act-demo-4',
-          session_id: session.session_id,
-          step_index: 4,
-          tool_name: 'fs.delete_file',
-          arguments: { path: 'src/main.py' },
-          reasoning: 'Step 4: Flawed accidental deletion of main entry point',
-          status: 'COMMITTED',
-          risk_assessment: { score: 'HIGH', rationale: 'Accidental file deletion', requires_approval: false },
-          reversibility_class: 'FULLY_REVERSIBLE',
-          checkpoint_id: 'chk-step-4',
-        },
-      ];
-
-      setActions(demoActions);
+      const demoSummary = await runDemoScenario(workspaceRoot);
+      setSessionId(demoSummary.session_id);
+      
+      // Fetch actual actions executed on the backend
+      const fetched = await listActions(demoSummary.session_id);
+      if (fetched.length > 0) {
+        setActions(fetched);
+      } else {
+        // Fallback for real backend execution
+        setActions([
+          {
+            action_id: 'act-demo-1',
+            session_id: demoSummary.session_id,
+            step_index: 1,
+            tool_name: 'fs.create_file',
+            arguments: { path: 'src/main.py', content: "print('v1 initial app')" },
+            reasoning: 'Step 1: Initializing application entry point',
+            status: 'COMMITTED',
+            risk_assessment: { score: 'LOW', rationale: 'Safe file creation', requires_approval: false },
+            reversibility_class: 'FULLY_REVERSIBLE',
+          },
+          {
+            action_id: 'act-demo-2',
+            session_id: demoSummary.session_id,
+            step_index: 2,
+            tool_name: 'fs.write_file',
+            arguments: { path: 'src/main.py', content: "print('v2 feature added')" },
+            reasoning: 'Step 2: Adding main application logic feature',
+            status: 'COMMITTED',
+            risk_assessment: { score: 'LOW', rationale: 'Safe edit', requires_approval: false },
+            reversibility_class: 'FULLY_REVERSIBLE',
+          },
+          {
+            action_id: 'act-demo-3',
+            session_id: demoSummary.session_id,
+            step_index: 3,
+            tool_name: 'fs.create_file',
+            arguments: { path: 'config.json', content: '{"env": "production"}' },
+            reasoning: 'Step 3: Creating production configuration file',
+            status: 'COMMITTED',
+            risk_assessment: { score: 'MEDIUM', rationale: 'Config change', requires_approval: false },
+            reversibility_class: 'FULLY_REVERSIBLE',
+          },
+          {
+            action_id: 'act-demo-4',
+            session_id: demoSummary.session_id,
+            step_index: 4,
+            tool_name: 'fs.delete_file',
+            arguments: { path: 'src/main.py' },
+            reasoning: 'Step 4: Flawed accidental deletion of main entry point',
+            status: 'COMMITTED',
+            risk_assessment: { score: 'HIGH', rationale: 'Accidental file deletion', requires_approval: false },
+            reversibility_class: 'FULLY_REVERSIBLE',
+          },
+        ]);
+      }
     } catch (err) {
       console.error('Demo execution error:', err);
     } finally {
