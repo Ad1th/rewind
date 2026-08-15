@@ -11,6 +11,7 @@ from backend.db.repositories import (
     SessionEntity,
     WorkspaceEntity,
 )
+from agent.demo.canonical_demo import CanonicalDemoRunner, DemoExecutionSummary
 from agent.runtime.approval import ApprovalManager
 from agent.runtime.checkpoint import CheckpointRecord
 from agent.runtime.contracts import Action
@@ -44,6 +45,12 @@ class CreateWorkspaceRequest(BaseModel):
 class CreateSessionRequest(BaseModel):
     workspace_root: str
     goal_prompt: str
+
+    model_config = ConfigDict(frozen=True)
+
+
+class RunDemoRequest(BaseModel):
+    workspace_root: str = "/tmp/rewind_demo_workspace"
 
     model_config = ConfigDict(frozen=True)
 
@@ -246,3 +253,21 @@ async def get_rollback(
     if not rb:
         raise HTTPException(status_code=404, detail=f"Rollback '{rollback_id}' not found.")
     return rb
+
+
+# --- Demo Endpoints ---
+
+@router.post("/demo/run", response_model=DemoExecutionSummary)
+async def run_demo_scenario(
+    req: RunDemoRequest,
+    repo: PersistenceRepository = Depends(get_repository),
+):
+    runner = CanonicalDemoRunner(req.workspace_root)
+    summary = await runner.run_canonical_demo("sess-canonical-demo")
+    
+    # Register session in repo
+    await repo.create_session(req.workspace_root, "Canonical Hackathon Demo Task")
+    for act in runner.dag_manager._nodes.values():
+        await repo.save_action(act.action)
+
+    return summary
