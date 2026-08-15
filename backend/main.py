@@ -1,18 +1,23 @@
 from fastapi import FastAPI
+from backend.api.router import router as api_router
 
 app = FastAPI(
     title="REWIND Control Plane API",
     version="0.1.0",
-    description="Safety Proxy & Transactional Execution Runtime for AI Agents"
+    description="Safety Proxy & Transactional Execution Runtime for AI Agents",
 )
+
+app.include_router(api_router)
+
 
 @app.get("/health")
 async def health_check():
     return {
         "status": "ok",
         "service": "rewind-backend",
-        "version": "0.1.0"
+        "version": "0.1.0",
     }
+
 
 if __name__ == "__main__":
     import uvicorn
