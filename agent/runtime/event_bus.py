@@ -1,12 +1,15 @@
 """Runtime Event Bus and Event Telemetry Pipeline."""
 
 import asyncio
+import logging
 from datetime import datetime, timezone
 from enum import Enum
 from inspect import iscoroutinefunction
 from typing import Any, Awaitable, Callable, Dict, List, Optional
 from uuid import uuid4
 from pydantic import BaseModel, ConfigDict, Field
+
+logger = logging.getLogger("rewind.event_bus")
 
 
 class EventType(str, Enum):
@@ -119,8 +122,7 @@ class RuntimeEventBus:
                 if asyncio.iscoroutine(res):
                     await res
         except Exception as err:
-            # Event handler exceptions should not break core publishing loop
-            print(f"[RuntimeEventBus] Error in handler {handler}: {err}")
+            logger.error("Error in event handler %s: %s", handler, err)
 
     def get_events(self, session_id: str) -> List[RuntimeEvent]:
         """Retrieve ordered history of published events for a session."""
