@@ -84,8 +84,10 @@ class RollbackExecutor:
             current_hash = WorkspaceStateHasher.compute_hash(
                 git_ref=current_git_hash or target_chk.git_state_ref,
                 fs_ref=current_fs_hash or target_chk.filesystem_state_ref,
+                db_ref=target_chk.postgresql_state_ref,
+                extra_metadata=target_chk.metadata,
             )
-            if current_hash == target_chk.integrity_hash:
+            if current_hash == target_chk.integrity_hash and current_git_hash is not None and current_fs_hash is not None:
                 summary = RollbackExecutorSummary(
                     rollback_plan_id="idempotent_skip",
                     session_id=session_id,

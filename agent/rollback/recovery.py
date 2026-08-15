@@ -47,7 +47,7 @@ class RollbackFailureRecovery:
         )
 
         audit = (
-            f"Rollback to step {summary.target_step_index} resulted in status '{summary.status}'. "
+            f"EMERGENCY_PARTIAL_ROLLBACK_CONTAINMENT: Rollback to step {summary.target_step_index} resulted in status '{summary.status}'. "
             f"Reverted actions: {len(summary.reverted_action_ids)}. "
             f"Failed on action: '{summary.failed_action_id}'. "
             f"Emergency checkpoint captured at '{emergency_chk.checkpoint_id}'."

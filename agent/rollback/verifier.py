@@ -45,7 +45,7 @@ class RollbackVerifier:
         
         Assesses:
         1. Target files exist or are absent according to expectation.
-        2. Git HEAD commit matches target_checkpoint.git_state_ref if Git worktree is active.
+        2. Git HEAD commit matches target_checkpoint.git_state_ref if Git repository exists.
         3. Computed Merkle state hash matches target_checkpoint.integrity_hash.
         """
         verified: List[str] = []
@@ -55,14 +55,15 @@ class RollbackVerifier:
         if affected_paths:
             for path_str in affected_paths:
                 try:
-                    canonical = validate_jailed_path(path_str, workspace_root)
+                    validate_jailed_path(path_str, workspace_root)
                     verified.append(path_str)
                 except Exception as err:
                     failed.append(f"{path_str} ({err})")
 
-        # 2. Verify Git Commit if Git worktree is active
+        # 2. Verify Git Commit if workspace is a Git repository
         git_passed = True
-        if target_checkpoint.git_state_ref and not target_checkpoint.git_state_ref.startswith("git_head_000"):
+        has_git_repo = os.path.exists(os.path.join(workspace_root, ".git"))
+        if has_git_repo and target_checkpoint.git_state_ref and not target_checkpoint.git_state_ref.startswith("git_head_000"):
             git_passed = self.git_driver.verify_worktree_commit(
                 worktree_path=workspace_root,
                 expected_commit_hash=target_checkpoint.git_state_ref,
@@ -73,7 +74,7 @@ class RollbackVerifier:
                 failed.append(f"git_commit_mismatch:{target_checkpoint.git_state_ref[:8]}")
 
         # 3. Calculate actual state hash
-        current_fs_ref = target_checkpoint.filesystem_state_ref  # From test or active driver
+        current_fs_ref = target_checkpoint.filesystem_state_ref
         actual_hash = WorkspaceStateHasher.compute_hash(
             git_ref=target_checkpoint.git_state_ref,
             fs_ref=current_fs_ref,

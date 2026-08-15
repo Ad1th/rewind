@@ -55,11 +55,9 @@ async def test_rollback_planner_builds_ordered_plan(tmp_path):
     assert plan.session_id == "sess-1"
     assert plan.target_step_index == 1
     assert plan.target_checkpoint_id == chk1.checkpoint_id
-    assert plan.affected_action_ids == ["act-2", "act-1"]
-    assert len(plan.execution_steps) == 2
+    assert plan.affected_action_ids == ["act-2"]
+    assert len(plan.execution_steps) == 1
 
-    # Step 1 in plan must be act-2 inverse, Step 2 in plan must be act-1 inverse
+    # Step 1 in plan must be act-2 inverse
     assert plan.execution_steps[0].action_id == "act-2"
     assert plan.execution_steps[0].strategy == RollbackStrategy.INVERSE_OPERATION
-    assert plan.execution_steps[1].action_id == "act-1"
-    assert plan.execution_steps[1].strategy == RollbackStrategy.INVERSE_OPERATION

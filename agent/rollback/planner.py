@@ -58,13 +58,8 @@ class RollbackPlanner:
         self.checkpoint_manager = checkpoint_manager
 
     def build_plan_for_step(self, session_id: str, target_step_index: int) -> RollbackPlan:
-        """Construct a RollbackPlan to restore workspace to target_step_index."""
-        target_action = self.dag_manager.get_action_by_step(target_step_index)
-        
-        # 1. Compute reverse topological rollback sequence
-        ordered_actions: List[Action] = self.dag_manager.compute_reverse_topological_order(target_action.action_id)
-        
-        # 2. Query target checkpoint
+        """Construct a RollbackPlan to restore workspace to state at target_step_index."""
+        # Query target checkpoint
         checkpoints = self.checkpoint_manager.list_checkpoints(session_id)
         target_chk: Optional[CheckpointRecord] = None
         for chk in checkpoints:
@@ -74,7 +69,17 @@ class RollbackPlanner:
 
         expected_hash = target_chk.integrity_hash if target_chk else "unverified_target_hash"
 
-        # 3. Construct RollbackStepItems in reverse topological order
+        # Actions that occurred AFTER target_step_index must be reversed
+        all_nodes = list(self.dag_manager._nodes.values())
+        actions_to_undo = [
+            node.action for node in all_nodes
+            if node.action.session_id == session_id and node.action.step_index > target_step_index
+        ]
+
+        # Sort in reverse topological / reverse step_index order
+        ordered_actions = sorted(actions_to_undo, key=lambda a: a.step_index, reverse=True)
+
+        # Construct RollbackStepItems
         execution_steps: List[RollbackStepItem] = []
         for idx, act in enumerate(ordered_actions, start=1):
             if act.inverse_ref is not None:
