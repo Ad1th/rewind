@@ -71,7 +71,9 @@ const DEMO_FALLBACK: ActionItem[] = [
 /* ------------------------------------------------------------------ */
 
 export const TimeMachineUI: React.FC = () => {
-  const [workspaceRoot]  = useState(DEMO_WS_ROOT);
+  // workspaceRoot must reflect the actual workspace the backend used during demo execution
+  // (the backend appends a session-scoped subdirectory to the base path)
+  const [workspaceRoot, setWorkspaceRoot] = useState(DEMO_WS_ROOT);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [actions, setActions]     = useState<ActionItem[]>([]);
   const [inspected, setInspected] = useState<ActionItem | null>(null);
@@ -90,8 +92,14 @@ export const TimeMachineUI: React.FC = () => {
 
     try {
       setDemoLabel('Executing agent…');
-      const summary = await runDemoScenario(workspaceRoot);
+      // Always send the base workspace root; the backend appends the session subdir
+      const summary = await runDemoScenario(DEMO_WS_ROOT);
       setSessionId(summary.session_id);
+      // CRITICAL: use the workspace_root that the backend actually executed in.
+      // The backend appends /<session_id> to the base path and captures pre-images there.
+      // Sending a different path to POST /rollbacks would make the executor unable to
+      // locate the pre-images, causing PARTIALLY_RESTORED.
+      setWorkspaceRoot(summary.workspace_root);
 
       setDemoLabel('Loading timeline…');
       const fetched = await listActions(summary.session_id);
