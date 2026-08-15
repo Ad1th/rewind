@@ -33,7 +33,8 @@ class RiskEngine:
         if "delete" in tool_name_lower or "drop" in tool_name_lower or "rm" in tool_name_lower:
             if score != RiskLevel.CRITICAL:
                 score = RiskLevel.HIGH
-            requires_approval = True
+            if tool.requires_approval:
+                requires_approval = True
             factors.append("destructive_operation")
 
         # Check for raw shell / terminal execution

@@ -260,14 +260,15 @@ async def get_rollback(
 @router.post("/demo/run", response_model=DemoExecutionSummary)
 async def run_demo_scenario(
     req: RunDemoRequest,
+    coordinator: ControlPlaneRuntimeCoordinator = Depends(get_coordinator),
     repo: PersistenceRepository = Depends(get_repository),
 ):
-    runner = CanonicalDemoRunner(req.workspace_root)
-    summary = await runner.run_canonical_demo("sess-canonical-demo")
+    runner = CanonicalDemoRunner(req.workspace_root, coordinator=coordinator)
+    summary = await runner.run_demo_steps("sess-canonical-demo")
     
     # Register session in repo
     await repo.create_session(req.workspace_root, "Canonical Hackathon Demo Task")
-    for act in runner.dag_manager._nodes.values():
-        await repo.save_action(act.action)
+    for node in coordinator.dag_manager._nodes.values():
+        await repo.save_action(node.action)
 
     return summary

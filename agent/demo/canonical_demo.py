@@ -1,7 +1,7 @@
 """Canonical REWIND Hackathon Demo Orchestration."""
 
 import os
-from typing import Dict, Any
+from typing import Dict, Any, List, Optional
 from pydantic import BaseModel, ConfigDict
 
 from backend.db.repositories import PersistenceRepository
@@ -12,7 +12,7 @@ from agent.rollback.dag import RollbackDAGManager
 from agent.rollback.executor import RollbackExecutor, RollbackExecutorSummary
 from agent.runtime.agent_loop import AgentLoop
 from agent.runtime.checkpoint import CheckpointManager
-from agent.runtime.contracts import ActionProposal
+from agent.runtime.contracts import Action, ActionProposal
 from agent.runtime.event_bus import RuntimeEventBus
 from agent.security.policy import PolicyEngine
 from agent.security.risk import RiskEngine
@@ -24,7 +24,7 @@ class DemoExecutionSummary(BaseModel):
     session_id: str
     workspace_root: str
     total_steps_executed: int
-    rollback_summary: RollbackExecutorSummary
+    rollback_summary: Optional[RollbackExecutorSummary] = None
 
     model_config = ConfigDict(frozen=True)
 
@@ -32,29 +32,39 @@ class DemoExecutionSummary(BaseModel):
 class CanonicalDemoRunner:
     """Runs the 14-stage canonical hackathon demonstration scenario through the real REWIND runtime."""
 
-    def __init__(self, workspace_root: str) -> None:
+    def __init__(self, workspace_root: str, coordinator: Optional[Any] = None) -> None:
         self.workspace_root = workspace_root
         os.makedirs(workspace_root, exist_ok=True)
 
         self.registry = ToolRegistry()
         self._register_tools()
 
-        self.policy_engine = PolicyEngine(self.registry)
-        self.risk_engine = RiskEngine()
-        self.checkpoint_manager = CheckpointManager()
-        self.dag_manager = RollbackDAGManager()
-        self.event_bus = RuntimeEventBus()
-        self.repo = PersistenceRepository()
-        self.fs_driver = FilesystemSandboxDriver()
-        self.git_driver = GitWorktreeDriver()
-
-        self.executor = RollbackExecutor(
-            dag_manager=self.dag_manager,
-            checkpoint_manager=self.checkpoint_manager,
-            event_bus=self.event_bus,
-            fs_driver=self.fs_driver,
-            git_driver=self.git_driver,
-        )
+        if coordinator:
+            self.policy_engine = PolicyEngine(self.registry)
+            self.risk_engine = RiskEngine()
+            self.checkpoint_manager = coordinator.checkpoint_manager
+            self.dag_manager = coordinator.dag_manager
+            self.event_bus = coordinator.event_bus
+            self.repo = coordinator.repo
+            self.fs_driver = coordinator.fs_driver
+            self.git_driver = coordinator.git_driver
+            self.executor = coordinator.rollback_executor
+        else:
+            self.policy_engine = PolicyEngine(self.registry)
+            self.risk_engine = RiskEngine()
+            self.checkpoint_manager = CheckpointManager()
+            self.dag_manager = RollbackDAGManager()
+            self.event_bus = RuntimeEventBus()
+            self.repo = PersistenceRepository()
+            self.fs_driver = FilesystemSandboxDriver()
+            self.git_driver = GitWorktreeDriver()
+            self.executor = RollbackExecutor(
+                dag_manager=self.dag_manager,
+                checkpoint_manager=self.checkpoint_manager,
+                event_bus=self.event_bus,
+                fs_driver=self.fs_driver,
+                git_driver=self.git_driver,
+            )
 
     def _register_tools(self) -> None:
         self.registry.register(
@@ -101,10 +111,8 @@ class CanonicalDemoRunner:
             )
         )
 
-    async def run_canonical_demo(self, session_id: str = "sess-canonical-demo") -> DemoExecutionSummary:
-        """Run the full 14-stage canonical hackathon demo."""
-        # Choreographed proposals passed through un-mocked interceptor & sandbox drivers
-        demo_proposals = [
+    def get_demo_proposals(self, session_id: str) -> List[ActionProposal]:
+        return [
             ActionProposal(
                 session_id=session_id,
                 tool_name="fs.create_file",
@@ -131,6 +139,9 @@ class CanonicalDemoRunner:
             ),
         ]
 
+    async def run_demo_steps(self, session_id: str = "sess-canonical-demo") -> DemoExecutionSummary:
+        """Run the 4 demo agent steps without executing rollback yet."""
+        demo_proposals = self.get_demo_proposals(session_id)
         demo_provider = DeterministicDemoLLMProvider(demo_proposals)
         loop = AgentLoop(
             registry=self.registry,
@@ -145,13 +156,23 @@ class CanonicalDemoRunner:
             git_driver=self.git_driver,
         )
 
-        # Execute 4 steps
         for _ in range(4):
             await loop.execute_step(
                 session_id=session_id,
                 goal_prompt="Canonical Demo Task",
                 workspace_root=self.workspace_root,
             )
+
+        return DemoExecutionSummary(
+            session_id=session_id,
+            workspace_root=self.workspace_root,
+            total_steps_executed=4,
+            rollback_summary=None,
+        )
+
+    async def run_canonical_demo(self, session_id: str = "sess-canonical-demo") -> DemoExecutionSummary:
+        """Run the full 14-stage canonical hackathon demo including rollback to step 2."""
+        summary_steps = await self.run_demo_steps(session_id)
 
         # Trigger REWIND to Step 2
         summary = await self.executor.execute_rollback_to_step(
@@ -163,6 +184,6 @@ class CanonicalDemoRunner:
         return DemoExecutionSummary(
             session_id=session_id,
             workspace_root=self.workspace_root,
-            total_steps_executed=4,
+            total_steps_executed=summary_steps.total_steps_executed,
             rollback_summary=summary,
         )
