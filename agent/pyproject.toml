@@ -1,0 +1,15 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "rewind-agent-runtime"
+version = "0.1.0"
+description = "REWIND Agent Interceptor, Risk Engine & Rollback Runtime"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "pydantic>=2.6.4",
+    "gitpython>=3.1.42",
+    "openai>=1.14.0",
+]
