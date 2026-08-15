@@ -14,7 +14,7 @@ This directory contains the core technical specifications, architecture designs,
 | [**DATA_MODEL.md**](./DATA_MODEL.md) | Core domain entities: Checkpoint, ActionLog, StateSnapshot, InverseOperation, DependencyGraph | Pending Specification |
 | [**DATABASE.md**](./DATABASE.md) | PostgreSQL schema, indexing strategy, state tables & audit log structure | Pending Specification |
 | [**API.md**](./API.md) | REST / WebSocket API specifications connecting frontend UI and agent backend runtime | Pending Specification |
-| [**SECURITY.md**](./SECURITY.md) | Sandboxing, filesystem isolation, API key handling & execution safety guarantees | Pending Specification |
+| [**SECURITY.md**](./SECURITY.md) | Sandboxing, filesystem isolation, API key handling & execution safety guarantees | Complete / Approved — Security Specification |
 | [**UX.md**](./UX.md) | Time Machine UI design system, interaction patterns, timeline visualization & control paradigms | Pending Specification |
 | [**DEVELOPMENT_PLAN.md**](./DEVELOPMENT_PLAN.md) | Hackathon timeline (Aug 11-15, 2026), milestone breakdown, critical path & risk mitigation | Pending Specification |
 | [**DECISIONS.md**](./DECISIONS.md) | Architecture Decision Records (ADRs) tracking trade-offs and design rationale | Active Log (ADR-001 through ADR-006) |
