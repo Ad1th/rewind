@@ -10,14 +10,14 @@ This directory contains the core technical specifications, architecture designs,
 | [**ARCHITECTURE.md**](./ARCHITECTURE.md) | High-level system architecture, subsystem boundaries, data flow & component topology | Complete / Approved — System Architecture Freeze |
 | [**AGENT_WORKFLOW.md**](./AGENT_WORKFLOW.md) | LLM provider abstraction, structured tool calls, execution lifecycle & risk hooks | Complete / Approved — Agent Workflow Specification |
 | [**ROLLBACK_ENGINE.md**](./ROLLBACK_ENGINE.md) | Invariant engine, inverse action generators, transaction logs & dependency DAG rollback | Complete / Approved — Rollback Engine Specification |
-| [**EXECUTION_MODEL.md**](./EXECUTION_MODEL.md) | Sandboxed tool execution, Docker runtime state capture, snapshotting & delta engines | Pending Specification |
-| [**DATA_MODEL.md**](./DATA_MODEL.md) | Core domain entities: Checkpoint, ActionLog, StateSnapshot, InverseOperation, DependencyGraph | Pending Specification |
-| [**DATABASE.md**](./DATABASE.md) | PostgreSQL schema, indexing strategy, state tables & audit log structure | Pending Specification |
-| [**API.md**](./API.md) | REST / WebSocket API specifications connecting frontend UI and agent backend runtime | Pending Specification |
+| [**EXECUTION_MODEL.md**](./EXECUTION_MODEL.md) | Sandboxed tool execution, Docker runtime state capture, snapshotting & delta engines | Complete / Approved — Execution & Snapshot Model |
+| [**DATA_MODEL.md**](./DATA_MODEL.md) | Core domain entities: Checkpoint, ActionLog, StateSnapshot, InverseOperation, DependencyGraph | Complete / Approved — Domain Data Model |
+| [**DATABASE.md**](./DATABASE.md) | PostgreSQL schema, indexing strategy, state tables & audit log structure | Complete / Approved — Database & DDL Schema |
+| [**API.md**](./API.md) | REST / WebSocket API specifications connecting frontend UI and agent backend runtime | Complete / Approved — REST & WebSocket API |
 | [**SECURITY.md**](./SECURITY.md) | Sandboxing, filesystem isolation, API key handling & execution safety guarantees | Complete / Approved — Security Specification |
 | [**UX.md**](./UX.md) | Time Machine UI design system, interaction patterns, timeline visualization & control paradigms | Complete / Approved — UX Specification |
 | [**DEVELOPMENT_PLAN.md**](./DEVELOPMENT_PLAN.md) | Hackathon timeline (Aug 11-15, 2026), milestone breakdown, critical path & risk mitigation | Complete / Approved — Development Plan & Roadmap |
-| [**DECISIONS.md**](./DECISIONS.md) | Architecture Decision Records (ADRs) tracking trade-offs and design rationale | Active Log (ADR-001 through ADR-006) |
+| [**DECISIONS.md**](./DECISIONS.md) | Architecture Decision Records (ADRs) tracking trade-offs and design rationale | Active Log (ADR-001 through ADR-008) |
 | [**DEMO.md**](./DEMO.md) | End-to-end hackathon demo script, scenario choreography & judging highlight map | Complete / Approved — Hackathon Demo Plan |
 
 ---

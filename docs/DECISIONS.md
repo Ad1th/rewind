@@ -57,3 +57,21 @@
 - **Context**: PostgreSQL `SAVEPOINT`s only function within active uncommitted transactions. Once a tool action commits to the database, savepoints are invalidated.
 - **Decision**: For uncommitted transaction steps, use native PostgreSQL `SAVEPOINT`s. For post-commit historical rollbacks, execute row-level pre-image inverse SQL operations (`DELETE` inserted rows, `UPDATE` columns back to pre-image values).
 - **Consequences**: Honest, deterministic PostgreSQL state restoration without requiring perpetual open database transactions across multi-step agent sessions.
+
+---
+
+## ADR-007: Event Stream Immutability & Merkle Root Checkpoint Chaining
+- **Date**: 2026-08-15
+- **Status**: Accepted
+- **Context**: Historical action logs and checkpoints must be tamper-resistant to guarantee provenance auditing.
+- **Decision**: Every checkpoint computes a SHA-256 Merkle root hash linking the Git worktree commit hash, filesystem tree hash, and PostgreSQL pre-image delta. Database action logs are strictly append-only.
+- **Consequences**: Immutable audit trail; instant integrity validation during rollback verification.
+
+---
+
+## ADR-008: Strict API Idempotency via Workspace State Hashing
+- **Date**: 2026-08-15
+- **Status**: Accepted
+- **Context**: Double-submitting a rollback request could trigger duplicate execution loops.
+- **Decision**: All REST rollback endpoints (`POST /api/v1/sessions/{id}/rollback`) compare the current workspace Merkle hash against the target checkpoint hash before executing. If identical, the request immediately returns `SKIPPED_ALREADY_AT_TARGET`.
+- **Consequences**: Safe, idempotent API operations under network retries or accidental double-clicks.
