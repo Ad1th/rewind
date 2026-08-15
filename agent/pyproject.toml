@@ -12,4 +12,5 @@ dependencies = [
     "pydantic>=2.6.4",
     "gitpython>=3.1.42",
     "openai>=1.14.0",
+    "jsonschema>=4.20.0",
 ]
