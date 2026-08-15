@@ -1,3 +1,4 @@
+'use client';
 import React, { useEffect } from 'react';
 import { ActionItem } from '../lib/api';
 
@@ -6,149 +7,134 @@ interface ActionInspectorProps {
   onClose: () => void;
 }
 
+function riskClass(score?: string) {
+  switch (score) {
+    case 'CRITICAL': return 'risk-critical';
+    case 'HIGH':     return 'risk-high';
+    case 'MEDIUM':   return 'risk-medium';
+    default:         return 'risk-low';
+  }
+}
+
 export const ActionInspector: React.FC<ActionInspectorProps> = ({ action, onClose }) => {
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [onClose]);
+    if (!action) return;
+    const fn = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', fn);
+    return () => window.removeEventListener('keydown', fn);
+  }, [action, onClose]);
 
   if (!action) return null;
 
-  const content = action.arguments?.content || 'Sample restored state preimage content';
-  const path = action.arguments?.path || 'workspace/resource';
+  const path     = action.arguments?.path ?? action.arguments?.target_path ?? 'workspace';
+  const content  = action.arguments?.content ?? null;
+  const isCreate = action.tool_name?.includes('create');
+  const isWrite  = action.tool_name?.includes('write');
+  const isDelete = action.tool_name?.includes('delete');
+
+  const beforeContent = isCreate
+    ? '(file did not exist)'
+    : isDelete
+      ? content ?? '(file contents before deletion)'
+      : '(previous file contents)';
+
+  const afterContent = isDelete
+    ? '(file deleted)'
+    : content ?? '(new file contents)';
 
   return (
     <div
-      className="modal-overlay"
+      className="modal-backdrop"
       onClick={onClose}
       role="dialog"
       aria-modal="true"
       aria-labelledby="inspector-title"
     >
-      <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+      <div className="modal-box" onClick={(e) => e.stopPropagation()}>
         {/* Header */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+        <div className="modal-header">
           <div>
-            <div className="font-mono" style={{ fontSize: '0.8rem', color: 'var(--accent-cyan)' }}>
-              ACTION #{action.step_index}
-            </div>
-            <h3 id="inspector-title" className="font-mono" style={{ fontSize: '1.2rem', fontWeight: 800, color: '#fff' }}>
-              {action.tool_name}
-            </h3>
+            <p className="modal-subtitle mono">STEP {String(action.step_index).padStart(2, '0')} — {action.tool_name}</p>
+            <h2 id="inspector-title" className="modal-title">Action Inspector</h2>
           </div>
           <button
+            className="btn btn-ghost btn-sm"
             onClick={onClose}
-            className="btn-action btn-secondary"
-            aria-label="Close action inspector"
-            style={{ padding: '6px 12px' }}
+            aria-label="Close inspector"
           >
             ✕
           </button>
         </div>
 
-        {/* Metadata Grid */}
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(3, 1fr)',
-            gap: '12px',
-            background: 'var(--bg-dark)',
-            padding: '12px 16px',
-            borderRadius: '8px',
-            border: '1px solid var(--border-color)',
-            marginBottom: '20px',
-          }}
-        >
-          <div>
-            <div style={{ fontSize: '0.75rem', color: 'var(--text-dim)' }}>RISK LEVEL</div>
-            <div style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--accent-amber)' }}>
-              {action.risk_assessment?.score || 'LOW'}
-            </div>
-          </div>
-          <div>
-            <div style={{ fontSize: '0.75rem', color: 'var(--text-dim)' }}>REVERSIBILITY</div>
-            <div style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--accent-cyan)' }}>
-              FULLY REVERSIBLE
-            </div>
-          </div>
-          <div>
-            <div style={{ fontSize: '0.75rem', color: 'var(--text-dim)' }}>TARGET PATH</div>
-            <div className="font-mono" style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-              {path}
-            </div>
-          </div>
-        </div>
-
-        {/* Intent Reasoning */}
-        <div style={{ marginBottom: '20px' }}>
-          <div style={{ fontSize: '0.8rem', color: 'var(--text-dim)', marginBottom: '4px' }}>INTENT REASONING</div>
-          <p style={{ fontSize: '0.9rem', color: 'var(--text-main)', background: 'var(--bg-dark)', padding: '10px 14px', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
-            {action.reasoning}
-          </p>
-        </div>
-
-        {/* Before / After State Diff Viewer */}
-        <div>
-          <div style={{ fontSize: '0.8rem', color: 'var(--text-dim)', marginBottom: '8px' }}>STATE MUTATION DIFF</div>
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: '1fr 1fr',
-              gap: '12px',
-            }}
-          >
-            <div>
-              <div style={{ fontSize: '0.75rem', color: 'var(--accent-red)', marginBottom: '4px', fontWeight: 700 }}>
-                BEFORE
+        {/* Body */}
+        <div className="modal-body">
+          {/* Meta table */}
+          <div className="meta-table">
+            <div className="meta-cell">
+              <div className="meta-cell-label">Risk</div>
+              <div className="meta-cell-value">
+                <span className={`risk-badge ${riskClass(action.risk_assessment?.score)}`}>
+                  {action.risk_assessment?.score ?? 'LOW'}
+                </span>
               </div>
-              <pre
-                className="font-mono"
-                style={{
-                  background: 'rgba(239, 68, 68, 0.05)',
-                  border: '1px solid rgba(239, 68, 68, 0.2)',
-                  padding: '12px',
-                  borderRadius: '6px',
-                  fontSize: '0.8rem',
-                  color: '#f87171',
-                  whiteSpace: 'pre-wrap',
-                  minHeight: '80px',
-                }}
-              >
-                {action.tool_name === 'fs.delete_file' ? `+ file exists: ${path}` : '- empty / preimage initial'}
-              </pre>
             </div>
-
-            <div>
-              <div style={{ fontSize: '0.75rem', color: 'var(--accent-green)', marginBottom: '4px', fontWeight: 700 }}>
-                AFTER
+            <div className="meta-cell">
+              <div className="meta-cell-label">Reversibility</div>
+              <div className="meta-cell-value" style={{ color: 'var(--cyan)', fontSize: 12 }}>
+                {action.reversibility_class?.replace(/_/g, ' ') ?? 'FULLY REVERSIBLE'}
               </div>
-              <pre
-                className="font-mono"
-                style={{
-                  background: 'rgba(16, 185, 129, 0.05)',
-                  border: '1px solid rgba(16, 185, 129, 0.2)',
-                  padding: '12px',
-                  borderRadius: '6px',
-                  fontSize: '0.8rem',
-                  color: '#34d399',
-                  whiteSpace: 'pre-wrap',
-                  minHeight: '80px',
-                }}
-              >
-                {action.tool_name === 'fs.delete_file' ? `- file deleted: ${path}` : `+ ${content}`}
-              </pre>
+            </div>
+            <div className="meta-cell">
+              <div className="meta-cell-label">Resource</div>
+              <div className="meta-cell-value" style={{ fontSize: 12, wordBreak: 'break-all' }}>{path}</div>
+            </div>
+          </div>
+
+          {/* Rationale */}
+          <div style={{ marginBottom: 16 }}>
+            <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--text-tertiary)', marginBottom: 6 }}>
+              Agent Reasoning
+            </p>
+            <p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.6 }}>{action.reasoning}</p>
+          </div>
+
+          {action.risk_assessment?.rationale && (
+            <div style={{ marginBottom: 16 }}>
+              <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--text-tertiary)', marginBottom: 6 }}>
+                Risk Rationale
+              </p>
+              <p style={{ fontSize: 12, color: 'var(--text-tertiary)', lineHeight: 1.5 }}>{action.risk_assessment.rationale}</p>
+            </div>
+          )}
+
+          {/* Diff */}
+          <div>
+            <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--text-tertiary)', marginBottom: 8 }}>
+              State Diff
+            </p>
+            <div className="diff-grid">
+              <div className="diff-panel">
+                <div className="diff-panel-header before">
+                  <span>−</span> BEFORE
+                </div>
+                <pre className="diff-content" style={{ color: 'var(--red)' }}>
+                  {beforeContent}
+                </pre>
+              </div>
+              <div className="diff-panel">
+                <div className="diff-panel-header after">
+                  <span>+</span> AFTER
+                </div>
+                <pre className="diff-content" style={{ color: 'var(--green)' }}>
+                  {afterContent}
+                </pre>
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Modal Footer */}
-        <div style={{ marginTop: '24px', textAlign: 'right' }}>
-          <button className="btn-action btn-secondary" onClick={onClose}>
-            Close Inspector
-          </button>
+        <div className="modal-footer">
+          <button className="btn btn-ghost btn-sm" onClick={onClose}>Close</button>
         </div>
       </div>
     </div>
