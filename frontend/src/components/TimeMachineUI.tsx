@@ -15,6 +15,7 @@ export const TimeMachineUI: React.FC = () => {
   const [rollbackStep, setRollbackStep] = useState<number | null>(null);
   const [lastRollbackResult, setLastRollbackResult] = useState<RollbackSummary | null>(null);
   const [isDemoRunning, setIsDemoRunning] = useState(false);
+  const [demoButtonLabel, setDemoButtonLabel] = useState('⚡ Run Interactive Hackathon Demo');
 
   const { isConnected } = useTelemetry(sessionId);
 
@@ -32,16 +33,21 @@ export const TimeMachineUI: React.FC = () => {
 
   const handleRunDemoScenario = async () => {
     setIsDemoRunning(true);
+    setDemoButtonLabel('Running Demo...');
     try {
+      await new Promise((resolve) => setTimeout(resolve, 300));
+      setDemoButtonLabel('Streaming Events...');
+
       const demoSummary = await runDemoScenario(workspaceRoot);
       setSessionId(demoSummary.session_id);
-      
-      // Fetch actual actions executed on the backend
+
+      await new Promise((resolve) => setTimeout(resolve, 300));
+      setDemoButtonLabel('Restoring State...');
+
       const fetched = await listActions(demoSummary.session_id);
       if (fetched.length > 0) {
         setActions(fetched);
       } else {
-        // Fallback for real backend execution
         setActions([
           {
             action_id: 'act-demo-1',
@@ -89,8 +95,10 @@ export const TimeMachineUI: React.FC = () => {
           },
         ]);
       }
+      setDemoButtonLabel('Demo Complete');
     } catch (err) {
       console.error('Demo execution error:', err);
+      setDemoButtonLabel('⚡ Run Interactive Hackathon Demo');
     } finally {
       setIsDemoRunning(false);
     }
@@ -103,7 +111,6 @@ export const TimeMachineUI: React.FC = () => {
       listActions(sessionId).then((fetched) => {
         if (fetched.length > 0) setActions(fetched);
         else {
-          // Truncate timeline to target step
           setActions((prev) => prev.filter((a) => a.step_index <= summary.target_step_index));
         }
       });
@@ -114,95 +121,121 @@ export const TimeMachineUI: React.FC = () => {
     <div>
       <Header sessionId={sessionId} isConnected={isConnected} />
 
-      <div className="container">
-        {/* Hero Value Banner */}
-        <div className="card" style={{ borderLeft: '4px solid var(--accent-cyan)', background: 'linear-gradient(180deg, #161b22 0%, #0d1117 100%)' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div>
-              <h1 style={{ fontSize: '1.5rem', fontWeight: 800, marginBottom: '6px', letterSpacing: '-0.02em' }}>
-                Transactional Safety Proxy & Time Machine
+      <main className="page-container">
+        {/* Hero Section */}
+        <div className="card-panel" style={{ borderLeft: '4px solid var(--accent-cyan)', padding: '28px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '20px' }}>
+            <div style={{ maxWidth: '650px' }}>
+              <div style={{ fontSize: '0.8rem', fontWeight: 800, color: 'var(--accent-cyan)', letterSpacing: '0.06em', marginBottom: '4px' }}>
+                TRANSACTIONAL SAFETY PROXY & EXECUTION RUNTIME
+              </div>
+              <h1 style={{ fontSize: '1.8rem', fontWeight: 900, marginBottom: '8px', letterSpacing: '-0.02em', color: '#fff' }}>
+                Ctrl+Z for AI Agents.
               </h1>
-              <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem' }}>
-                Intercept, verify, and deterministically REWIND un-trusted AI agent actions with SHA-256 Merkle root integrity.
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem', lineHeight: 1.5 }}>
+                Intercept, verify, and deterministically reverse agent actions before mistakes become permanent across Filesystem, Git, and PostgreSQL.
               </p>
             </div>
-            <button
-              className="btn btn-primary"
-              onClick={handleRunDemoScenario}
-              disabled={isDemoRunning}
-              style={{ padding: '12px 20px', fontSize: '0.95rem' }}
-            >
-              ⚡ Run Interactive Hackathon Demo
-            </button>
+
+            <div>
+              <button
+                className="btn-action btn-hero"
+                onClick={handleRunDemoScenario}
+                disabled={isDemoRunning}
+                style={{ padding: '14px 24px', fontSize: '0.95rem' }}
+                aria-label="Run interactive hackathon demo"
+              >
+                {demoButtonLabel}
+              </button>
+            </div>
           </div>
         </div>
 
-        {/* Task Setup Form */}
-        <div className="card">
-          <h2 style={{ fontSize: '1.1rem', marginBottom: '12px' }}>Agent Workspace Setup</h2>
-          <form onSubmit={handleStartSession} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            <div>
-              <label style={{ fontSize: '0.85rem', color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>
-                Jailed Workspace Path
-              </label>
-              <input
-                type="text"
-                value={workspaceRoot}
-                onChange={(e) => setWorkspaceRoot(e.target.value)}
-                style={{ width: '100%', padding: '8px 12px', background: 'var(--bg-dark)', border: '1px solid var(--border-color)', color: '#fff', borderRadius: '6px' }}
-              />
+        {/* Workspace Metadata Header */}
+        <div
+          className="card-panel"
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+            gap: '16px',
+            padding: '16px 20px',
+            background: 'var(--bg-card)',
+          }}
+        >
+          <div>
+            <div style={{ fontSize: '0.75rem', color: 'var(--text-dim)', fontWeight: 700 }}>WORKSPACE</div>
+            <div className="font-mono" style={{ fontSize: '0.85rem', color: '#fff', marginTop: '2px' }}>
+              {workspaceRoot}
             </div>
-            <div>
-              <label style={{ fontSize: '0.85rem', color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>
-                Agent Goal Prompt
-              </label>
-              <input
-                type="text"
-                value={goalPrompt}
-                onChange={(e) => setGoalPrompt(e.target.value)}
-                style={{ width: '100%', padding: '8px 12px', background: 'var(--bg-dark)', border: '1px solid var(--border-color)', color: '#fff', borderRadius: '6px' }}
-              />
+          </div>
+
+          <div>
+            <div style={{ fontSize: '0.75rem', color: 'var(--text-dim)', fontWeight: 700 }}>AGENT TASK</div>
+            <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: '2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {goalPrompt}
             </div>
-            <div>
-              <button type="submit" className="btn" style={{ background: 'var(--border-color)', color: '#fff' }}>
-                Initialize Custom Session
-              </button>
+          </div>
+
+          <div>
+            <div style={{ fontSize: '0.75rem', color: 'var(--text-dim)', fontWeight: 700 }}>SESSION ID</div>
+            <div className="font-mono" style={{ fontSize: '0.85rem', color: 'var(--accent-cyan)', marginTop: '2px' }}>
+              {sessionId ? sessionId.slice(0, 18) + '...' : 'No Active Session'}
             </div>
-          </form>
+          </div>
+
+          <div>
+            <div style={{ fontSize: '0.75rem', color: 'var(--text-dim)', fontWeight: 700 }}>STATUS</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', fontWeight: 700, color: isConnected ? 'var(--accent-green)' : 'var(--text-muted)', marginTop: '2px' }}>
+              <span className={`status-dot ${isConnected ? 'live' : 'offline'}`} />
+              {isConnected ? 'LIVE' : 'OFFLINE'}
+            </div>
+          </div>
         </div>
 
-        {/* Rollback Result Banner */}
+        {/* Restored State Banner */}
         {lastRollbackResult && (
-          <div className="card" style={{ borderLeft: '4px solid var(--accent-green)', background: 'rgba(34, 197, 94, 0.05)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div className="card-panel" style={{ borderLeft: '4px solid var(--accent-green)', background: 'rgba(16, 185, 129, 0.06)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
               <div>
-                <h4 style={{ color: 'var(--accent-green)', fontSize: '1.1rem' }}>
-                  ✓ RESTORED — State Verified Clean
-                </h4>
-                <p style={{ fontSize: '0.9rem', marginTop: '4px' }}>
-                  Restored workspace to <strong>Step #{lastRollbackResult.target_step_index}</strong>. Deterministically reversed {lastRollbackResult.reverted_action_ids.length} downstream actions.
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <h4 style={{ color: 'var(--accent-green)', fontSize: '1.15rem', fontWeight: 800 }}>
+                    ✓ RESTORED
+                  </h4>
+                  <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>— State Verified Clean</span>
+                </div>
+                <p style={{ fontSize: '0.9rem', color: 'var(--text-main)', marginTop: '4px' }}>
+                  Workspace returned to <strong>Step #{lastRollbackResult.target_step_index}</strong>. Deterministically reversed {lastRollbackResult.reverted_action_ids?.length || 0} downstream action(s). SHA-256 Merkle root integrity hash verified.
                 </p>
               </div>
-              <span className="badge badge-green">VERIFICATION PASSED</span>
+              <span className="badge-tag badge-low">VERIFICATION PASSED</span>
             </div>
           </div>
         )}
 
-        {/* Live Timeline */}
+        {/* Live Timeline Section */}
         <div style={{ marginTop: '32px' }}>
-          <h3 style={{ fontSize: '1.2rem', marginBottom: '16px' }}>Live Action Timeline & Checkpoints</h3>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+            <h2 style={{ fontSize: '1.3rem', fontWeight: 800, color: '#fff' }}>
+              Live Action Timeline & Checkpoints
+            </h2>
+            <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+              {actions.length} action(s) recorded
+            </span>
+          </div>
+
           <ActionTimeline
             actions={actions}
             onInspect={(act) => setInspectedAction(act)}
             onRollback={(stepIdx) => setRollbackStep(stepIdx)}
+            onRunDemo={handleRunDemoScenario}
           />
         </div>
-      </div>
+      </main>
 
-      {/* Inspector Modal */}
+      {/* Action Inspector Modal */}
       <ActionInspector action={inspectedAction} onClose={() => setInspectedAction(null)} />
 
-      {/* Rollback Modal */}
+      {/* Rollback Execution Modal */}
       {rollbackStep !== null && sessionId && (
         <RollbackModal
           sessionId={sessionId}
