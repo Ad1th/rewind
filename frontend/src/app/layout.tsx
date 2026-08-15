@@ -1,8 +1,9 @@
 import React from "react";
+import "./globals.css";
 
 export const metadata = {
   title: "REWIND — Ctrl+Z for AI Agents",
-  description: "Transactional Execution Runtime & Time Machine Interface for Autonomous AI Agents",
+  description: "Intercept, verify, and deterministically reverse AI agent actions.",
 };
 
 export default function RootLayout({
@@ -12,7 +13,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body style={{ margin: 0, backgroundColor: "#090D16", color: "#F9FAFB", fontFamily: "system-ui, sans-serif" }}>
+      <body>
         {children}
       </body>
     </html>

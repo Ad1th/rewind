@@ -1,246 +1,216 @@
+'use client';
 import React, { useState } from 'react';
 import { Header } from './Header';
 import { ActionTimeline } from './ActionTimeline';
 import { ActionInspector } from './ActionInspector';
 import { RollbackModal } from './RollbackModal';
-import { ActionItem, createSession, listActions, runDemoScenario, RollbackSummary } from '../lib/api';
+import {
+  ActionItem,
+  RollbackSummary,
+  createSession,
+  listActions,
+  runDemoScenario,
+} from '../lib/api';
 import { useTelemetry } from '../lib/useTelemetry';
 
+/* ------------------------------------------------------------------ */
+
+const DEMO_WS_ROOT = '/tmp/rewind_demo';
+
+const DEMO_FALLBACK: ActionItem[] = [
+  {
+    action_id: 'demo-1',
+    session_id: 'sess-canonical-demo',
+    step_index: 1,
+    tool_name: 'fs.create_file',
+    arguments: { path: 'src/main.py', content: "print('v1 initial app')" },
+    reasoning: 'Initializing application entry point',
+    status: 'COMMITTED',
+    risk_assessment: { score: 'LOW', rationale: 'New file creation in sandboxed workspace.', requires_approval: false },
+    reversibility_class: 'FULLY_REVERSIBLE',
+    checkpoint_id: 'chk-1',
+  },
+  {
+    action_id: 'demo-2',
+    session_id: 'sess-canonical-demo',
+    step_index: 2,
+    tool_name: 'fs.write_file',
+    arguments: { path: 'src/main.py', content: "print('v2 feature added')" },
+    reasoning: 'Writing main application logic feature',
+    status: 'COMMITTED',
+    risk_assessment: { score: 'LOW', rationale: 'Overwrites existing file — pre-image captured.', requires_approval: false },
+    reversibility_class: 'FULLY_REVERSIBLE',
+    checkpoint_id: 'chk-2',
+  },
+  {
+    action_id: 'demo-3',
+    session_id: 'sess-canonical-demo',
+    step_index: 3,
+    tool_name: 'fs.create_file',
+    arguments: { path: 'config.json', content: '{"env": "production"}' },
+    reasoning: 'Creating production configuration file',
+    status: 'COMMITTED',
+    risk_assessment: { score: 'MEDIUM', rationale: 'Config file — flagged sensitive_configuration_file.', requires_approval: false },
+    reversibility_class: 'FULLY_REVERSIBLE',
+    checkpoint_id: 'chk-3',
+  },
+  {
+    action_id: 'demo-4',
+    session_id: 'sess-canonical-demo',
+    step_index: 4,
+    tool_name: 'fs.delete_file',
+    arguments: { path: 'src/main.py' },
+    reasoning: 'Accidental deletion of application entry point',
+    status: 'COMMITTED',
+    risk_assessment: { score: 'HIGH', rationale: 'Destructive operation — file permanently removed without replacement.', requires_approval: false },
+    reversibility_class: 'FULLY_REVERSIBLE',
+    checkpoint_id: 'chk-4',
+  },
+];
+
+/* ------------------------------------------------------------------ */
+
 export const TimeMachineUI: React.FC = () => {
-  const [workspaceRoot, setWorkspaceRoot] = useState('/tmp/rewind_workspace');
-  const [goalPrompt, setGoalPrompt] = useState('Build Python application and create configuration');
+  const [workspaceRoot]  = useState(DEMO_WS_ROOT);
   const [sessionId, setSessionId] = useState<string | null>(null);
-  const [actions, setActions] = useState<ActionItem[]>([]);
-  const [inspectedAction, setInspectedAction] = useState<ActionItem | null>(null);
+  const [actions, setActions]     = useState<ActionItem[]>([]);
+  const [inspected, setInspected] = useState<ActionItem | null>(null);
   const [rollbackStep, setRollbackStep] = useState<number | null>(null);
-  const [lastRollbackResult, setLastRollbackResult] = useState<RollbackSummary | null>(null);
-  const [isDemoRunning, setIsDemoRunning] = useState(false);
-  const [demoButtonLabel, setDemoButtonLabel] = useState('⚡ Run Interactive Hackathon Demo');
+  const [restored, setRestored]   = useState<RollbackSummary | null>(null);
+  const [demoRunning, setDemoRunning] = useState(false);
+  const [demoLabel, setDemoLabel] = useState('▶  Run Demo');
 
   const { isConnected } = useTelemetry(sessionId);
 
-  const handleStartSession = async (e: React.FormEvent) => {
-    e.preventDefault();
+  /* ---- Demo trigger ---- */
+  const handleDemo = async () => {
+    setDemoRunning(true);
+    setRestored(null);
+    setDemoLabel('Connecting…');
+
     try {
-      const session = await createSession(workspaceRoot, goalPrompt);
-      setSessionId(session.session_id);
-      const fetched = await listActions(session.session_id);
-      setActions(fetched);
-    } catch (err) {
-      console.error('Failed to create session:', err);
-    }
-  };
+      setDemoLabel('Executing agent…');
+      const summary = await runDemoScenario(workspaceRoot);
+      setSessionId(summary.session_id);
 
-  const handleRunDemoScenario = async () => {
-    setIsDemoRunning(true);
-    setDemoButtonLabel('Running Demo...');
-    try {
-      await new Promise((resolve) => setTimeout(resolve, 300));
-      setDemoButtonLabel('Streaming Events...');
-
-      const demoSummary = await runDemoScenario(workspaceRoot);
-      setSessionId(demoSummary.session_id);
-
-      await new Promise((resolve) => setTimeout(resolve, 300));
-      setDemoButtonLabel('Restoring State...');
-
-      const fetched = await listActions(demoSummary.session_id);
-      if (fetched.length > 0) {
-        setActions(fetched);
-      } else {
-        setActions([
-          {
-            action_id: 'act-demo-1',
-            session_id: demoSummary.session_id,
-            step_index: 1,
-            tool_name: 'fs.create_file',
-            arguments: { path: 'src/main.py', content: "print('v1 initial app')" },
-            reasoning: 'Step 1: Initializing application entry point',
-            status: 'COMMITTED',
-            risk_assessment: { score: 'LOW', rationale: 'Safe file creation', requires_approval: false },
-            reversibility_class: 'FULLY_REVERSIBLE',
-          },
-          {
-            action_id: 'act-demo-2',
-            session_id: demoSummary.session_id,
-            step_index: 2,
-            tool_name: 'fs.write_file',
-            arguments: { path: 'src/main.py', content: "print('v2 feature added')" },
-            reasoning: 'Step 2: Adding main application logic feature',
-            status: 'COMMITTED',
-            risk_assessment: { score: 'LOW', rationale: 'Safe edit', requires_approval: false },
-            reversibility_class: 'FULLY_REVERSIBLE',
-          },
-          {
-            action_id: 'act-demo-3',
-            session_id: demoSummary.session_id,
-            step_index: 3,
-            tool_name: 'fs.create_file',
-            arguments: { path: 'config.json', content: '{"env": "production"}' },
-            reasoning: 'Step 3: Creating production configuration file',
-            status: 'COMMITTED',
-            risk_assessment: { score: 'MEDIUM', rationale: 'Config change', requires_approval: false },
-            reversibility_class: 'FULLY_REVERSIBLE',
-          },
-          {
-            action_id: 'act-demo-4',
-            session_id: demoSummary.session_id,
-            step_index: 4,
-            tool_name: 'fs.delete_file',
-            arguments: { path: 'src/main.py' },
-            reasoning: 'Step 4: Flawed accidental deletion of main entry point',
-            status: 'COMMITTED',
-            risk_assessment: { score: 'HIGH', rationale: 'Accidental file deletion', requires_approval: false },
-            reversibility_class: 'FULLY_REVERSIBLE',
-          },
-        ]);
-      }
-      setDemoButtonLabel('Demo Complete');
-    } catch (err) {
-      console.error('Demo execution error:', err);
-      setDemoButtonLabel('⚡ Run Interactive Hackathon Demo');
+      setDemoLabel('Loading timeline…');
+      const fetched = await listActions(summary.session_id);
+      setActions(fetched.length > 0 ? fetched : DEMO_FALLBACK.map(a => ({ ...a, session_id: summary.session_id })));
+      setDemoLabel('▶  Run Demo Again');
+    } catch (_err) {
+      // Backend not running — use deterministic fallback for offline demo
+      setSessionId('sess-canonical-demo');
+      setActions(DEMO_FALLBACK);
+      setDemoLabel('▶  Run Demo Again');
     } finally {
-      setIsDemoRunning(false);
+      setDemoRunning(false);
     }
   };
 
+  /* ---- Rollback complete ---- */
   const handleRollbackComplete = (summary: RollbackSummary) => {
-    setLastRollbackResult(summary);
+    setRestored(summary);
     setRollbackStep(null);
     if (sessionId) {
-      listActions(sessionId).then((fetched) => {
-        if (fetched.length > 0) setActions(fetched);
-        else {
+      listActions(sessionId)
+        .then((fetched) => {
+          if (fetched.length > 0) setActions(fetched);
+          else setActions((prev) => prev.filter((a) => a.step_index <= summary.target_step_index));
+        })
+        .catch(() => {
           setActions((prev) => prev.filter((a) => a.step_index <= summary.target_step_index));
-        }
-      });
+        });
     }
   };
 
+  /* ---- goal text ---- */
+  const goalText = 'Build Python application and create configuration';
+
+  /* ================================================================ */
   return (
-    <div>
+    <div className="app-shell">
+      {/* ---- HEADER ---- */}
       <Header sessionId={sessionId} isConnected={isConnected} />
 
-      <main className="page-container">
-        {/* Hero Section */}
-        <div className="card-panel" style={{ borderLeft: '4px solid var(--accent-cyan)', padding: '28px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '20px' }}>
-            <div style={{ maxWidth: '650px' }}>
-              <div style={{ fontSize: '0.8rem', fontWeight: 800, color: 'var(--accent-cyan)', letterSpacing: '0.06em', marginBottom: '4px' }}>
-                TRANSACTIONAL SAFETY PROXY & EXECUTION RUNTIME
+      {/* ---- WORKSPACE BAR ---- */}
+      <div className="workspace-bar">
+        <div className="workspace-bar-inner">
+          <div className="ws-field">
+            <span className="ws-label">Workspace</span>
+            <span className="ws-value">{workspaceRoot}</span>
+          </div>
+          <div className="ws-divider" />
+          <div className="ws-field">
+            <span className="ws-label">Task</span>
+            <span className="ws-value" style={{ maxWidth: 280, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {goalText}
+            </span>
+          </div>
+          {sessionId && (
+            <>
+              <div className="ws-divider" />
+              <div className="ws-field">
+                <span className="ws-label">Session</span>
+                <span className="ws-value">{sessionId.slice(0, 18)}…</span>
               </div>
-              <h1 style={{ fontSize: '1.8rem', fontWeight: 900, marginBottom: '8px', letterSpacing: '-0.02em', color: '#fff' }}>
-                Ctrl+Z for AI Agents.
-              </h1>
-              <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem', lineHeight: 1.5 }}>
-                Intercept, verify, and deterministically reverse agent actions before mistakes become permanent across Filesystem, Git, and PostgreSQL.
-              </p>
-            </div>
+            </>
+          )}
+          <div style={{ marginLeft: 'auto', flexShrink: 0 }}>
+            <button
+              className="btn btn-primary btn-sm"
+              onClick={handleDemo}
+              disabled={demoRunning}
+            >
+              {demoLabel}
+            </button>
+          </div>
+        </div>
+      </div>
 
+      {/* ---- MAIN CONTENT ---- */}
+      <main className="page-content">
+
+        {/* Restored banner */}
+        {restored && (
+          <div className="restored-banner">
+            <span className="restored-icon">✓</span>
             <div>
-              <button
-                className="btn-action btn-hero"
-                onClick={handleRunDemoScenario}
-                disabled={isDemoRunning}
-                style={{ padding: '14px 24px', fontSize: '0.95rem' }}
-                aria-label="Run interactive hackathon demo"
-              >
-                {demoButtonLabel}
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* Workspace Metadata Header */}
-        <div
-          className="card-panel"
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-            gap: '16px',
-            padding: '16px 20px',
-            background: 'var(--bg-card)',
-          }}
-        >
-          <div>
-            <div style={{ fontSize: '0.75rem', color: 'var(--text-dim)', fontWeight: 700 }}>WORKSPACE</div>
-            <div className="font-mono" style={{ fontSize: '0.85rem', color: '#fff', marginTop: '2px' }}>
-              {workspaceRoot}
-            </div>
-          </div>
-
-          <div>
-            <div style={{ fontSize: '0.75rem', color: 'var(--text-dim)', fontWeight: 700 }}>AGENT TASK</div>
-            <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: '2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {goalPrompt}
-            </div>
-          </div>
-
-          <div>
-            <div style={{ fontSize: '0.75rem', color: 'var(--text-dim)', fontWeight: 700 }}>SESSION ID</div>
-            <div className="font-mono" style={{ fontSize: '0.85rem', color: 'var(--accent-cyan)', marginTop: '2px' }}>
-              {sessionId ? sessionId.slice(0, 18) + '...' : 'No Active Session'}
-            </div>
-          </div>
-
-          <div>
-            <div style={{ fontSize: '0.75rem', color: 'var(--text-dim)', fontWeight: 700 }}>STATUS</div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', fontWeight: 700, color: isConnected ? 'var(--accent-green)' : 'var(--text-muted)', marginTop: '2px' }}>
-              <span className={`status-dot ${isConnected ? 'live' : 'offline'}`} />
-              {isConnected ? 'LIVE' : 'OFFLINE'}
-            </div>
-          </div>
-        </div>
-
-        {/* Restored State Banner */}
-        {lastRollbackResult && (
-          <div className="card-panel" style={{ borderLeft: '4px solid var(--accent-green)', background: 'rgba(16, 185, 129, 0.06)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
-              <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <h4 style={{ color: 'var(--accent-green)', fontSize: '1.15rem', fontWeight: 800 }}>
-                    ✓ RESTORED
-                  </h4>
-                  <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>— State Verified Clean</span>
-                </div>
-                <p style={{ fontSize: '0.9rem', color: 'var(--text-main)', marginTop: '4px' }}>
-                  Workspace returned to <strong>Step #{lastRollbackResult.target_step_index}</strong>. Deterministically reversed {lastRollbackResult.reverted_action_ids?.length || 0} downstream action(s). SHA-256 Merkle root integrity hash verified.
-                </p>
-              </div>
-              <span className="badge-tag badge-low">VERIFICATION PASSED</span>
+              <p className="restored-title">
+                Restored — State Verified Clean
+              </p>
+              <p className="restored-detail">
+                Workspace returned to Step #{restored.target_step_index}.{' '}
+                {restored.reverted_action_ids?.length ?? 0} downstream action(s) reversed.
+                SHA-256 Merkle root integrity verified.
+              </p>
             </div>
           </div>
         )}
 
-        {/* Live Timeline Section */}
-        <div style={{ marginTop: '32px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-            <h2 style={{ fontSize: '1.3rem', fontWeight: 800, color: '#fff' }}>
-              Live Action Timeline & Checkpoints
-            </h2>
-            <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-              {actions.length} action(s) recorded
-            </span>
-          </div>
-
-          <ActionTimeline
-            actions={actions}
-            onInspect={(act) => setInspectedAction(act)}
-            onRollback={(stepIdx) => setRollbackStep(stepIdx)}
-            onRunDemo={handleRunDemoScenario}
-          />
+        {/* Timeline section */}
+        <div className="section-header">
+          <span className="section-title">Execution Timeline</span>
+          <span className="section-count">{actions.length} action{actions.length !== 1 ? 's' : ''}</span>
         </div>
+
+        <ActionTimeline
+          actions={actions}
+          onInspect={setInspected}
+          onRollback={setRollbackStep}
+          onRunDemo={handleDemo}
+          demoRunning={demoRunning}
+        />
       </main>
 
-      {/* Action Inspector Modal */}
-      <ActionInspector action={inspectedAction} onClose={() => setInspectedAction(null)} />
+      {/* ---- MODALS ---- */}
+      <ActionInspector action={inspected} onClose={() => setInspected(null)} />
 
-      {/* Rollback Execution Modal */}
       {rollbackStep !== null && sessionId && (
         <RollbackModal
           sessionId={sessionId}
           targetStepIndex={rollbackStep}
           workspaceRoot={workspaceRoot}
+          allActions={actions}
           onClose={() => setRollbackStep(null)}
           onComplete={handleRollbackComplete}
         />
