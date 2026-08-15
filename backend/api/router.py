@@ -4,6 +4,7 @@ from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, ConfigDict, Field
 
+from backend.api.service import ControlPlaneRuntimeCoordinator
 from backend.db.repositories import (
     PersistenceRepository,
     RollbackRecordEntity,
@@ -16,11 +17,14 @@ from agent.runtime.contracts import Action
 
 router = APIRouter(prefix="/api/v1", tags=["Control Plane API"])
 
-# Dependency Injection for Singleton Repository instance
-_repo_instance = PersistenceRepository()
+# Dependency Injection Singleton Coordinator instance
+_coordinator_instance = ControlPlaneRuntimeCoordinator()
+
+def get_coordinator() -> ControlPlaneRuntimeCoordinator:
+    return _coordinator_instance
 
 def get_repository() -> PersistenceRepository:
-    return _repo_instance
+    return _coordinator_instance.repo
 
 
 # --- Request & Response Models ---
@@ -185,6 +189,18 @@ async def get_checkpoint(
 
 
 # --- Rollbacks Endpoints ---
+
+@router.post("/rollbacks", response_model=RollbackRecordEntity)
+async def trigger_rollback(
+    req: TriggerRollbackRequest,
+    coordinator: ControlPlaneRuntimeCoordinator = Depends(get_coordinator),
+):
+    return await coordinator.execute_rollback_from_api(
+        session_id=req.session_id,
+        target_step_index=req.target_step_index,
+        workspace_root=req.workspace_root,
+    )
+
 
 @router.get("/sessions/{session_id}/rollbacks", response_model=List[RollbackRecordEntity])
 async def list_session_rollbacks(
