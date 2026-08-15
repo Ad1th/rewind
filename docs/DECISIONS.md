@@ -48,3 +48,12 @@
 - **Context**: The LLM may hallucinate tool arguments, permissions, or risk levels, or attempt unauthorized authority escalation.
 - **Decision**: All tool metadata, risk classifications, schema validations, sandboxing rules, and inverse generation strategies belong strictly to the REWIND Runtime Tool Registry. The LLM is treated strictly as an untrusted proposal engine.
 - **Consequences**: Complete runtime defense against prompt injection, hallucinated tool calls, and unauthorized privilege escalation.
+
+---
+
+## ADR-006: Post-Commit PostgreSQL Historical Rollback via Row Pre-Image Inverse Recipes
+- **Date**: 2026-08-15
+- **Status**: Accepted
+- **Context**: PostgreSQL `SAVEPOINT`s only function within active uncommitted transactions. Once a tool action commits to the database, savepoints are invalidated.
+- **Decision**: For uncommitted transaction steps, use native PostgreSQL `SAVEPOINT`s. For post-commit historical rollbacks, execute row-level pre-image inverse SQL operations (`DELETE` inserted rows, `UPDATE` columns back to pre-image values).
+- **Consequences**: Honest, deterministic PostgreSQL state restoration without requiring perpetual open database transactions across multi-step agent sessions.
