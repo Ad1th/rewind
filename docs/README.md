@@ -18,7 +18,7 @@ This directory contains the core technical specifications, architecture designs,
 | [**UX.md**](./UX.md) | Time Machine UI design system, interaction patterns, timeline visualization & control paradigms | Complete / Approved — UX Specification |
 | [**DEVELOPMENT_PLAN.md**](./DEVELOPMENT_PLAN.md) | Hackathon timeline (Aug 11-15, 2026), milestone breakdown, critical path & risk mitigation | Pending Specification |
 | [**DECISIONS.md**](./DECISIONS.md) | Architecture Decision Records (ADRs) tracking trade-offs and design rationale | Active Log (ADR-001 through ADR-006) |
-| [**DEMO.md**](./DEMO.md) | End-to-end hackathon demo script, scenario choreography & judging highlight map | Pending Specification |
+| [**DEMO.md**](./DEMO.md) | End-to-end hackathon demo script, scenario choreography & judging highlight map | Complete / Approved — Hackathon Demo Plan |
 
 ---
 
