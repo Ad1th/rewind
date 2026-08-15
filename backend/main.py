@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from backend.api.router import router as api_router
+from backend.api.websocket import ws_router
 
 app = FastAPI(
     title="REWIND Control Plane API",
@@ -8,6 +9,7 @@ app = FastAPI(
 )
 
 app.include_router(api_router)
+app.include_router(ws_router)
 
 
 @app.get("/health")
