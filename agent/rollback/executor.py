@@ -5,6 +5,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from agent.execution.filesystem import FilesystemSandboxDriver
 from agent.execution.git_worktree import GitWorktreeDriver
+from agent.execution.postgres import PostgresRollbackDriver
 from agent.rollback.dag import RollbackDAGManager
 from agent.rollback.planner import RollbackPlan, RollbackPlanner, RollbackStrategy
 from agent.rollback.verifier import RollbackVerificationResult, RollbackVerifier
@@ -37,6 +38,7 @@ class RollbackExecutor:
         event_bus: RuntimeEventBus,
         fs_driver: Optional[FilesystemSandboxDriver] = None,
         git_driver: Optional[GitWorktreeDriver] = None,
+        db_driver: Optional[PostgresRollbackDriver] = None,
         verifier: Optional[RollbackVerifier] = None,
     ) -> None:
         self.dag_manager = dag_manager
@@ -44,7 +46,8 @@ class RollbackExecutor:
         self.event_bus = event_bus
         self.fs_driver = fs_driver or FilesystemSandboxDriver()
         self.git_driver = git_driver or GitWorktreeDriver()
-        self.verifier = verifier or RollbackVerifier(self.fs_driver, self.git_driver)
+        self.db_driver = db_driver or PostgresRollbackDriver()
+        self.verifier = verifier or RollbackVerifier(self.fs_driver, self.git_driver, self.db_driver)
         self.planner = RollbackPlanner(dag_manager, checkpoint_manager)
 
     async def execute_rollback_to_step(
@@ -149,6 +152,8 @@ class RollbackExecutor:
                             workspace_root,
                         )
                         success = res.success
+                    elif recipe.inverse_tool_name == "db.restore_row_preimage":
+                        success = self.db_driver.restore_row_preimage(recipe.arguments["preimage_id"])
                 elif step_item.strategy == RollbackStrategy.GIT_WORKTREE_CHECKOUT and step_item.git_commit_hash:
                     success = self.git_driver.restore_commit_snapshot(workspace_root, step_item.git_commit_hash)
                 elif step_item.strategy == RollbackStrategy.FILESYSTEM_PREIMAGE_RESTORE:
