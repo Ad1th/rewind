@@ -17,7 +17,7 @@ export interface ActionItem {
   risk_assessment: {
     score: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
     rationale: string;
-    requires_approval: bool;
+    requires_approval: boolean;
   };
   reversibility_class: string;
   checkpoint_id?: string;
