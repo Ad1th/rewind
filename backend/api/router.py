@@ -11,6 +11,7 @@ from backend.db.repositories import (
     SessionEntity,
     WorkspaceEntity,
 )
+from agent.runtime.approval import ApprovalManager
 from agent.runtime.checkpoint import CheckpointRecord
 from agent.runtime.contracts import Action
 
@@ -19,12 +20,16 @@ router = APIRouter(prefix="/api/v1", tags=["Control Plane API"])
 
 # Dependency Injection Singleton Coordinator instance
 _coordinator_instance = ControlPlaneRuntimeCoordinator()
+_approval_mgr = ApprovalManager(_coordinator_instance.repo, _coordinator_instance.event_bus)
 
 def get_coordinator() -> ControlPlaneRuntimeCoordinator:
     return _coordinator_instance
 
 def get_repository() -> PersistenceRepository:
     return _coordinator_instance.repo
+
+def get_approval_manager() -> ApprovalManager:
+    return _approval_mgr
 
 
 # --- Request & Response Models ---
@@ -145,6 +150,28 @@ async def get_action(
     if not action:
         raise HTTPException(status_code=404, detail=f"Action '{action_id}' not found.")
     return action
+
+
+@router.post("/actions/{action_id}/approve", response_model=Action)
+async def approve_action(
+    action_id: str,
+    approval_mgr: ApprovalManager = Depends(get_approval_manager),
+):
+    try:
+        return await approval_mgr.approve_action(action_id)
+    except ValueError as err:
+        raise HTTPException(status_code=404, detail=str(err))
+
+
+@router.post("/actions/{action_id}/reject", response_model=Action)
+async def reject_action(
+    action_id: str,
+    approval_mgr: ApprovalManager = Depends(get_approval_manager),
+):
+    try:
+        return await approval_mgr.reject_action(action_id)
+    except ValueError as err:
+        raise HTTPException(status_code=404, detail=str(err))
 
 
 @router.get("/actions/{action_id}/diff", response_model=ActionDiffResponse)
