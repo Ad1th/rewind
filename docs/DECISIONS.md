@@ -39,3 +39,12 @@
 - **Context**: Rollback cannot rely on generative LLM prompts to "undo" mistakes due to hallucination risks. Rollback engine must handle complex multi-step dependency graphs.
 - **Decision**: Combine pre-action state snapshots (Git commits, DB savepoints, file diffs) with topological execution of inverse action recipes along the Action Dependency DAG.
 - **Consequences**: Guarantees deterministic, 100% accurate environment restoration without invoking the LLM during state rewind.
+
+---
+
+## ADR-005: Runtime-Enforced Tool Metadata & Untrusted LLM Planner Model
+- **Date**: 2026-08-15
+- **Status**: Accepted
+- **Context**: The LLM may hallucinate tool arguments, permissions, or risk levels, or attempt unauthorized authority escalation.
+- **Decision**: All tool metadata, risk classifications, schema validations, sandboxing rules, and inverse generation strategies belong strictly to the REWIND Runtime Tool Registry. The LLM is treated strictly as an untrusted proposal engine.
+- **Consequences**: Complete runtime defense against prompt injection, hallucinated tool calls, and unauthorized privilege escalation.
